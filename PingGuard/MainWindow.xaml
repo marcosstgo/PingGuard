@@ -1,0 +1,275 @@
+<Window x:Class="PingGuard.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ping Guard"
+        Width="380" Height="490"
+        MinWidth="380" MinHeight="490"
+        MaxWidth="380" MaxHeight="490"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        UseLayoutRounding="True">
+
+  <Window.Resources>
+    <Style x:Key="SettingInput" TargetType="TextBox">
+      <Setter Property="Background"       Value="#0f0f14"/>
+      <Setter Property="Foreground"       Value="#c0c0cc"/>
+      <Setter Property="BorderBrush"      Value="#2a2a35"/>
+      <Setter Property="BorderThickness"  Value="1"/>
+      <Setter Property="Padding"          Value="8,5"/>
+      <Setter Property="FontFamily"       Value="Consolas"/>
+      <Setter Property="FontSize"         Value="11"/>
+      <Setter Property="CaretBrush"       Value="#00f0ff"/>
+      <Setter Property="SelectionBrush"   Value="#1a3a4a"/>
+      <Style.Triggers>
+        <Trigger Property="IsFocused" Value="True">
+          <Setter Property="BorderBrush" Value="#00f0ff"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="IconBtn" TargetType="Button">
+      <Setter Property="Width"           Value="28"/>
+      <Setter Property="Height"          Value="28"/>
+      <Setter Property="Background"      Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground"      Value="#555565"/>
+      <Setter Property="FontFamily"      Value="Consolas"/>
+      <Setter Property="FontSize"        Value="12"/>
+      <Setter Property="Cursor"          Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                    CornerRadius="5" Padding="0">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#18181f"/>
+                <Setter Property="Foreground" Value="#c0c0cc"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#22222e"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="ToggleStyle" TargetType="CheckBox">
+      <Setter Property="Foreground"  Value="#666674"/>
+      <Setter Property="FontFamily"  Value="Consolas"/>
+      <Setter Property="FontSize"    Value="10"/>
+      <Setter Property="Cursor"      Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <Border x:Name="track" Width="28" Height="15" CornerRadius="8"
+                      Background="#1a1a22" BorderBrush="#2a2a35" BorderThickness="1" Margin="0,0,6,0">
+                <Border x:Name="thumb" Width="11" Height="11" CornerRadius="6"
+                        Background="#44444e" Margin="1,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+              </Border>
+              <ContentPresenter VerticalAlignment="Center"/>
+            </StackPanel>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="track" Property="Background"   Value="#0a2a1a"/>
+                <Setter TargetName="track" Property="BorderBrush"  Value="#4ade80"/>
+                <Setter TargetName="thumb" Property="Background"   Value="#4ade80"/>
+                <Setter TargetName="thumb" Property="HorizontalAlignment" Value="Right"/>
+                <Setter TargetName="thumb" Property="Margin"       Value="0,0,1,0"/>
+                <Setter Property="Foreground" Value="#8a8a9a"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="#9a9aaa"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <!-- Outer shell with rounded corners -->
+  <Border Background="#060608" CornerRadius="12"
+          BorderBrush="#1e1e28" BorderThickness="1">
+    <Border.Effect>
+      <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="6" Opacity=".6" Direction="270"/>
+    </Border.Effect>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="44"/>    <!-- title bar -->
+        <RowDefinition Height="*"/>     <!-- content -->
+        <RowDefinition Height="Auto"/>  <!-- settings -->
+      </Grid.RowDefinitions>
+
+      <!-- ── TITLE BAR ── -->
+      <Border Grid.Row="0" CornerRadius="12,12,0,0"
+              Background="#0a0a0e" BorderBrush="#1e1e28" BorderThickness="0,0,0,1"
+              MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+        <Grid Margin="14,0,8,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- Status dot + name -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" IsHitTestVisible="False">
+            <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="#44444e" Margin="0,0,8,0"/>
+            <TextBlock Text="PING GUARD"
+                       FontFamily="Consolas" FontSize="11" FontWeight="Bold"
+                       Foreground="#9a9aaa"/>
+          </StackPanel>
+
+          <!-- Window buttons -->
+          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button x:Name="PinBtn" Style="{StaticResource IconBtn}"
+                    ToolTip="Always on top" Click="PinBtn_Click">
+              <TextBlock Text="📌" FontSize="10" IsHitTestVisible="False"/>
+            </Button>
+            <Button Style="{StaticResource IconBtn}" Click="MinimizeBtn_Click">
+              <TextBlock Text="─" FontFamily="Consolas" FontSize="11"/>
+            </Button>
+            <Button Style="{StaticResource IconBtn}" Click="CloseBtn_Click">
+              <TextBlock Text="✕" FontFamily="Consolas" FontSize="11"/>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- ── MAIN CONTENT ── -->
+      <StackPanel Grid.Row="1" Margin="0,0,0,0">
+
+        <!-- BIG PING NUMBER -->
+        <Grid Height="110" Margin="0,0,0,0">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock x:Name="PingValue" Text="—"
+                       FontFamily="Consolas" FontSize="64" FontWeight="Bold"
+                       Foreground="#4ade80" HorizontalAlignment="Center"
+                       LineHeight="64"/>
+            <TextBlock x:Name="PingUnit" Text="ms"
+                       FontFamily="Consolas" FontSize="11" Foreground="#444454"
+                       HorizontalAlignment="Center" Margin="0,-4,0,0"/>
+          </StackPanel>
+        </Grid>
+
+        <!-- Target + status row -->
+        <StackPanel HorizontalAlignment="Center" Margin="0,0,0,14">
+          <TextBlock x:Name="TargetLabel" Text="TARGET · 1.1.1.1"
+                     FontFamily="Consolas" FontSize="9" Foreground="#333344"
+                     HorizontalAlignment="Center"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,3,0,0">
+            <Ellipse x:Name="OnlineDot" Width="6" Height="6" Fill="#44444e" Margin="0,0,5,0"/>
+            <TextBlock x:Name="StatusLabel" Text="AGUARDANDO"
+                       FontFamily="Consolas" FontSize="9" Foreground="#444454"/>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- SPARKLINE -->
+        <Border Margin="16,0,16,0" Height="90"
+                Background="#0a0a0e" CornerRadius="8"
+                BorderBrush="#1a1a22" BorderThickness="1">
+          <Canvas x:Name="SparkCanvas" Margin="8,6,8,6" ClipToBounds="True"/>
+        </Border>
+        <TextBlock Text="ÚLTIMOS 2 MINUTOS"
+                   FontFamily="Consolas" FontSize="8" Foreground="#222230"
+                   HorizontalAlignment="Right" Margin="0,4,18,0"/>
+
+        <!-- STATS ROW -->
+        <Border Margin="16,10,16,0"
+                Background="#0a0a0e" CornerRadius="8"
+                BorderBrush="#1a1a22" BorderThickness="1" Padding="0,10">
+          <UniformGrid Columns="5">
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock x:Name="StatAvg"    Text="—"   FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#c0c0cc" HorizontalAlignment="Center"/>
+              <TextBlock Text="AVG"                      FontFamily="Consolas" FontSize="8"  Foreground="#2a2a38" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock x:Name="StatP95"    Text="—"   FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#c0c0cc" HorizontalAlignment="Center"/>
+              <TextBlock Text="P95"                      FontFamily="Consolas" FontSize="8"  Foreground="#2a2a38" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock x:Name="StatJitter" Text="—"   FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#c0c0cc" HorizontalAlignment="Center"/>
+              <TextBlock Text="JITTER"                   FontFamily="Consolas" FontSize="8"  Foreground="#2a2a38" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock x:Name="StatLoss"   Text="—"   FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#c0c0cc" HorizontalAlignment="Center"/>
+              <TextBlock Text="LOSS"                     FontFamily="Consolas" FontSize="8"  Foreground="#2a2a38" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock x:Name="StatUptime" Text="—"   FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#c0c0cc" HorizontalAlignment="Center"/>
+              <TextBlock Text="UPTIME"                   FontFamily="Consolas" FontSize="8"  Foreground="#2a2a38" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+            </StackPanel>
+          </UniformGrid>
+        </Border>
+
+      </StackPanel>
+
+      <!-- ── SETTINGS PANEL ── -->
+      <Border Grid.Row="2"
+              Background="#0a0a0e" CornerRadius="0,0,12,12"
+              BorderBrush="#1e1e28" BorderThickness="0,1,0,0"
+              Padding="16,12,16,14">
+        <StackPanel>
+
+          <!-- Target + Alert inputs -->
+          <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="8"/>
+              <ColumnDefinition Width="100"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="TARGET" FontFamily="Consolas" FontSize="8" Foreground="#333344" Margin="0,0,0,3"/>
+              <TextBox x:Name="TargetInput" Style="{StaticResource SettingInput}"
+                       LostFocus="TargetInput_LostFocus"
+                       KeyDown="TargetInput_KeyDown"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="ALERTA (MS)" FontFamily="Consolas" FontSize="8" Foreground="#333344" Margin="0,0,0,3"/>
+              <TextBox x:Name="AlertInput" Style="{StaticResource SettingInput}"
+                       LostFocus="AlertInput_LostFocus"
+                       KeyDown="AlertInput_KeyDown"/>
+            </StackPanel>
+          </Grid>
+
+          <!-- Toggles row -->
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <CheckBox x:Name="AlwaysOnTopCheck" Grid.Column="0"
+                      Content="Always on top"
+                      Style="{StaticResource ToggleStyle}"
+                      Checked="AlwaysOnTop_Changed" Unchecked="AlwaysOnTop_Changed"/>
+
+            <CheckBox x:Name="AutoStartCheck" Grid.Column="1"
+                      Content="Inicio automático"
+                      Style="{StaticResource ToggleStyle}"
+                      Checked="AutoStart_Changed" Unchecked="AutoStart_Changed"/>
+
+            <Button Grid.Column="2"
+                    Click="CopyStats_Click"
+                    Style="{StaticResource IconBtn}"
+                    ToolTip="Copiar estadísticas">
+              <TextBlock Text="📋" FontSize="11"/>
+            </Button>
+          </Grid>
+
+        </StackPanel>
+      </Border>
+
+    </Grid>
+  </Border>
+</Window>
