@@ -24,6 +24,8 @@ public partial class MainWindow : Window
     private int      _soundStreak   = 0;
     private DateTime _soundCooldown = DateTime.MinValue;
 
+    private static string FormatMs(int ms) => ms == 0 ? "<1" : ms.ToString();
+
     // Ping color thresholds
     private static readonly MediaColor CGreen  = MediaColor.FromRgb(74,  222, 128);
     private static readonly MediaColor CYellow = MediaColor.FromRgb(251, 191, 36);
@@ -94,7 +96,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        PingValue.Text = s.LatencyMs.ToString();
+        PingValue.Text = FormatMs(s.LatencyMs);
 
         MediaColor c = s.LatencyMs < threshold * 0.7 ? CGreen :
                   s.LatencyMs < threshold        ? CYellow :
@@ -125,7 +127,7 @@ public partial class MainWindow : Window
                   s.LatencyMs < threshold * 1.5  ? COrange : CRed;
 
         dot.Fill        = new SolidColorBrush(c);
-        ping.Text       = s.LatencyMs.ToString();
+        ping.Text       = FormatMs(s.LatencyMs) + " ms";
         ping.Foreground = new SolidColorBrush(c);
     }
 

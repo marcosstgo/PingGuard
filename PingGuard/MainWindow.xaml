@@ -181,7 +181,7 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
-              <ColumnDefinition Width="52"/>
+              <ColumnDefinition Width="68"/>
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="SecLabel1" Text="HOST 2"
                        FontFamily="Consolas" FontSize="9" Foreground="#333344"
@@ -202,7 +202,7 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
-              <ColumnDefinition Width="52"/>
+              <ColumnDefinition Width="68"/>
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="SecLabel2" Text="HOST 3"
                        FontFamily="Consolas" FontSize="9" Foreground="#333344"

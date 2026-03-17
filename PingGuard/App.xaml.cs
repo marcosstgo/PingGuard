@@ -27,6 +27,16 @@ public partial class App : WpfApp
         _settings = new SettingsService();
         var prefs = _settings.Load();
 
+        // First-run smart defaults: 1.1.1.1 + auto-detected gateway
+        if (string.IsNullOrWhiteSpace(prefs.ExtraTarget1) &&
+            string.IsNullOrWhiteSpace(prefs.ExtraTarget2))
+        {
+            prefs.ExtraTarget1 = "1.1.1.1";
+            var gw = GatewayHelper.GetDefaultGateway();
+            if (gw != null) prefs.ExtraTarget2 = gw;
+            _settings.Save(prefs);
+        }
+
         _monitor = new PingMonitorService { Target = prefs.Target };
 
         // Always create 2 secondary monitors so the UI can hot-swap targets
