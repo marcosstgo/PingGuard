@@ -11,6 +11,7 @@ public partial class App : WpfApp
     private MainWindow?                       _win;
     private System.Windows.Forms.NotifyIcon?  _tray;
     private PingMonitorService?               _monitor;
+    private PingMonitorService[]              _secondary = [];
     private SettingsService?                  _settings;
 
     // ── Icon colors ──────────────────────────────────────────────────────────
@@ -27,6 +28,13 @@ public partial class App : WpfApp
         var prefs = _settings.Load();
 
         _monitor = new PingMonitorService { Target = prefs.Target };
+
+        // Always create 2 secondary monitors so the UI can hot-swap targets
+        _secondary =
+        [
+            new PingMonitorService { Target = prefs.ExtraTarget1.Trim() },
+            new PingMonitorService { Target = prefs.ExtraTarget2.Trim() },
+        ];
 
         _tray = new System.Windows.Forms.NotifyIcon
         {
@@ -45,11 +53,13 @@ public partial class App : WpfApp
             if (ev.Button == System.Windows.Forms.MouseButtons.Left) ToggleWindow();
         };
 
-        _win = new MainWindow(_monitor, _settings, prefs);
+        _win = new MainWindow(_monitor, _secondary, _settings, prefs);
         _win.Closing += (_, ev) => { ev.Cancel = true; _win.Hide(); };
 
         _monitor.SampleAdded += OnSample;
         _monitor.Start();
+        foreach (var s in _secondary)
+            if (!string.IsNullOrWhiteSpace(s.Target)) s.Start();
 
         _win.Show();
     }
@@ -141,6 +151,7 @@ public partial class App : WpfApp
     {
         _monitor?.Stop();
         _monitor?.Dispose();
+        foreach (var s in _secondary) { s.Stop(); s.Dispose(); }
         _tray?.Dispose();
         _win?.ForceClose();
         Shutdown();

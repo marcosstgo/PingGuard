@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Ping Guard"
         Icon="pinggua.ico"
-        Width="380" Height="490"
-        MinWidth="380" MinHeight="490"
-        MaxWidth="380" MaxHeight="490"
+        Width="380" Height="560"
+        MinWidth="380" MinHeight="560"
+        MaxWidth="380" MaxHeight="560"
         ResizeMode="NoResize"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -148,7 +148,7 @@
       <StackPanel Grid.Row="1" Margin="0,0,0,0">
 
         <!-- BIG PING NUMBER -->
-        <Grid Height="110" Margin="0,0,0,0">
+        <Grid Height="100" Margin="0,0,0,0">
           <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
             <TextBlock x:Name="PingValue" Text="—"
                        FontFamily="Consolas" FontSize="64" FontWeight="Bold"
@@ -161,7 +161,7 @@
         </Grid>
 
         <!-- Target + status row -->
-        <StackPanel HorizontalAlignment="Center" Margin="0,0,0,14">
+        <StackPanel HorizontalAlignment="Center" Margin="0,0,0,8">
           <TextBlock x:Name="TargetLabel" Text="TARGET · 1.1.1.1"
                      FontFamily="Consolas" FontSize="9" Foreground="#333344"
                      HorizontalAlignment="Center"/>
@@ -172,8 +172,51 @@
           </StackPanel>
         </StackPanel>
 
+        <!-- Secondary target rows -->
+        <Border x:Name="SecRow1" Visibility="Collapsed"
+                Margin="16,0,16,4" Padding="10,5"
+                Background="#08080c" CornerRadius="6"
+                BorderBrush="#18181f" BorderThickness="1">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="52"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SecLabel1" Text="HOST 2"
+                       FontFamily="Consolas" FontSize="9" Foreground="#333344"
+                       VerticalAlignment="Center"/>
+            <Ellipse x:Name="SecDot1" Grid.Column="1"
+                     Width="6" Height="6" Fill="#44444e" Margin="0,0,8,0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="SecPing1" Grid.Column="2" Text="—"
+                       FontFamily="Consolas" FontSize="13" FontWeight="Bold"
+                       Foreground="#c0c0cc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
+
+        <Border x:Name="SecRow2" Visibility="Collapsed"
+                Margin="16,0,16,4" Padding="10,5"
+                Background="#08080c" CornerRadius="6"
+                BorderBrush="#18181f" BorderThickness="1">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="52"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SecLabel2" Text="HOST 3"
+                       FontFamily="Consolas" FontSize="9" Foreground="#333344"
+                       VerticalAlignment="Center"/>
+            <Ellipse x:Name="SecDot2" Grid.Column="1"
+                     Width="6" Height="6" Fill="#44444e" Margin="0,0,8,0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="SecPing2" Grid.Column="2" Text="—"
+                       FontFamily="Consolas" FontSize="13" FontWeight="Bold"
+                       Foreground="#c0c0cc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
+
         <!-- SPARKLINE -->
-        <Border Margin="16,0,16,0" Height="90"
+        <Border Margin="16,0,16,0" Height="82"
                 Background="#0a0a0e" CornerRadius="8"
                 BorderBrush="#1a1a22" BorderThickness="1">
           <Canvas x:Name="SparkCanvas" Margin="8,6,8,6" ClipToBounds="True"/>
@@ -219,22 +262,32 @@
               Padding="16,12,16,14">
         <StackPanel>
 
-          <!-- Target + Alert inputs -->
+          <!-- Host inputs + Alert -->
           <Grid Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="8"/>
-              <ColumnDefinition Width="100"/>
+              <ColumnDefinition Width="92"/>
             </Grid.ColumnDefinitions>
 
+            <!-- Hosts column -->
             <StackPanel Grid.Column="0">
-              <TextBlock Text="TARGET" FontFamily="Consolas" FontSize="8" Foreground="#333344" Margin="0,0,0,3"/>
+              <TextBlock Text="HOSTS" FontFamily="Consolas" FontSize="8" Foreground="#333344" Margin="0,0,0,3"/>
               <TextBox x:Name="TargetInput" Style="{StaticResource SettingInput}"
                        LostFocus="TargetInput_LostFocus"
-                       KeyDown="TargetInput_KeyDown"/>
+                       KeyDown="TargetInput_KeyDown"
+                       Margin="0,0,0,3"/>
+              <TextBox x:Name="ExtraInput1" Style="{StaticResource SettingInput}"
+                       LostFocus="ExtraInput1_LostFocus"
+                       KeyDown="ExtraInput1_KeyDown"
+                       Margin="0,0,0,3"/>
+              <TextBox x:Name="ExtraInput2" Style="{StaticResource SettingInput}"
+                       LostFocus="ExtraInput2_LostFocus"
+                       KeyDown="ExtraInput2_KeyDown"/>
             </StackPanel>
 
-            <StackPanel Grid.Column="2">
+            <!-- Alert column -->
+            <StackPanel Grid.Column="2" VerticalAlignment="Top">
               <TextBlock Text="ALERTA (MS)" FontFamily="Consolas" FontSize="8" Foreground="#333344" Margin="0,0,0,3"/>
               <TextBox x:Name="AlertInput" Style="{StaticResource SettingInput}"
                        LostFocus="AlertInput_LostFocus"
@@ -247,20 +300,26 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <CheckBox x:Name="AlwaysOnTopCheck" Grid.Column="0"
-                      Content="Always on top"
+                      Content="On top"
                       Style="{StaticResource ToggleStyle}"
                       Checked="AlwaysOnTop_Changed" Unchecked="AlwaysOnTop_Changed"/>
 
             <CheckBox x:Name="AutoStartCheck" Grid.Column="1"
-                      Content="Inicio automático"
+                      Content="Autostart"
                       Style="{StaticResource ToggleStyle}"
                       Checked="AutoStart_Changed" Unchecked="AutoStart_Changed"/>
 
-            <Button Grid.Column="2"
+            <CheckBox x:Name="SoundCheck" Grid.Column="2"
+                      Content="Sonido"
+                      Style="{StaticResource ToggleStyle}"
+                      Checked="Sound_Changed" Unchecked="Sound_Changed"/>
+
+            <Button Grid.Column="3"
                     Click="CopyStats_Click"
                     Style="{StaticResource IconBtn}"
                     ToolTip="Copiar estadísticas">

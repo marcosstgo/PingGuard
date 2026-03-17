@@ -1,3 +1,4 @@
+using System.Media;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -14,10 +15,14 @@ namespace PingGuard;
 public partial class MainWindow : Window
 {
     private readonly PingMonitorService    _monitor;
+    private readonly PingMonitorService[]  _secondary;
     private readonly SettingsService       _svc;
     private          AppSettings           _prefs;
-    private          bool                  _forceClose;
     private          UpdateService.UpdateInfo? _pendingUpdate;
+
+    // Sound alert state
+    private int      _soundStreak   = 0;
+    private DateTime _soundCooldown = DateTime.MinValue;
 
     // Ping color thresholds
     private static readonly MediaColor CGreen  = MediaColor.FromRgb(74,  222, 128);
@@ -28,15 +33,21 @@ public partial class MainWindow : Window
 
     public AppSettings CurrentSettings => _prefs;
 
-    public MainWindow(PingMonitorService monitor, SettingsService svc, AppSettings prefs)
+    public MainWindow(PingMonitorService monitor, PingMonitorService[] secondary,
+                      SettingsService svc, AppSettings prefs)
     {
         InitializeComponent();
-        _monitor = monitor;
-        _svc     = svc;
-        _prefs   = prefs;
+        _monitor   = monitor;
+        _secondary = secondary;
+        _svc       = svc;
+        _prefs     = prefs;
 
         ApplySettings();
         _monitor.SampleAdded += OnSample;
+
+        // Wire up secondary monitors
+        if (_secondary.Length > 0) _secondary[0].SampleAdded += s => OnSecondarySample(s, 0);
+        if (_secondary.Length > 1) _secondary[1].SampleAdded += s => OnSecondarySample(s, 1);
 
         if (!double.IsNaN(prefs.WindowLeft) && !double.IsNaN(prefs.WindowTop))
         {
@@ -51,7 +62,7 @@ public partial class MainWindow : Window
         _ = CheckForUpdateAsync();
     }
 
-    // ── Sample handler ───────────────────────────────────────────────────────
+    // ── Sample handlers ───────────────────────────────────────────────────────
 
     private void OnSample(PingSample s)
     {
@@ -60,7 +71,13 @@ public partial class MainWindow : Window
             UpdatePingDisplay(s);
             UpdateStats();
             RenderSparkline();
+            MaybeSoundAlert(s);
         });
+    }
+
+    private void OnSecondarySample(PingSample s, int index)
+    {
+        Dispatcher.InvokeAsync(() => UpdateSecondaryRow(s, index));
     }
 
     private void UpdatePingDisplay(PingSample s)
@@ -69,11 +86,11 @@ public partial class MainWindow : Window
 
         if (!s.Success)
         {
-            PingValue.Text      = "—";
+            PingValue.Text       = "—";
             PingValue.Foreground = new SolidColorBrush(CGray);
-            OnlineDot.Fill      = new SolidColorBrush(CGray);
-            StatusLabel.Text    = "SIN RESPUESTA";
-            StatusDot.Fill      = new SolidColorBrush(CGray);
+            OnlineDot.Fill       = new SolidColorBrush(CGray);
+            StatusLabel.Text     = "SIN RESPUESTA";
+            StatusDot.Fill       = new SolidColorBrush(CGray);
             return;
         }
 
@@ -89,6 +106,29 @@ public partial class MainWindow : Window
         StatusLabel.Text     = s.LatencyMs < threshold ? "ONLINE" : "LATENCIA ALTA";
     }
 
+    private void UpdateSecondaryRow(PingSample s, int index)
+    {
+        var dot  = index == 0 ? SecDot1  : SecDot2;
+        var ping = index == 0 ? SecPing1 : SecPing2;
+        int threshold = _prefs.AlertThresholdMs;
+
+        if (!s.Success)
+        {
+            dot.Fill  = new SolidColorBrush(CGray);
+            ping.Text = "—";
+            ping.Foreground = new SolidColorBrush(CGray);
+            return;
+        }
+
+        MediaColor c = s.LatencyMs < threshold * 0.7 ? CGreen :
+                  s.LatencyMs < threshold        ? CYellow :
+                  s.LatencyMs < threshold * 1.5  ? COrange : CRed;
+
+        dot.Fill        = new SolidColorBrush(c);
+        ping.Text       = s.LatencyMs.ToString();
+        ping.Foreground = new SolidColorBrush(c);
+    }
+
     private void UpdateStats()
     {
         var (avg, p95, jitter, loss) = _monitor.GetStats(120);
@@ -100,12 +140,31 @@ public partial class MainWindow : Window
         StatLoss.Text   = $"{loss:F1}%";
         StatUptime.Text = $"{uptime:F1}%";
 
-        // Color loss and uptime based on severity
         StatLoss.Foreground   = loss   > 5  ? new SolidColorBrush(CRed)    :
                                 loss   > 1  ? new SolidColorBrush(CYellow) :
                                               new SolidColorBrush(MediaColor.FromRgb(192, 192, 204));
         StatUptime.Foreground = uptime < 95 ? new SolidColorBrush(CYellow) :
                                               new SolidColorBrush(MediaColor.FromRgb(192, 192, 204));
+    }
+
+    // ── Sound alert ───────────────────────────────────────────────────────────
+
+    private void MaybeSoundAlert(PingSample s)
+    {
+        if (!_prefs.SoundAlert) return;
+        if (!s.Success || s.LatencyMs >= _prefs.AlertThresholdMs)
+        {
+            _soundStreak++;
+            if (_soundStreak >= 3 && DateTime.Now > _soundCooldown)
+            {
+                Task.Run(() => SystemSounds.Beep.Play());
+                _soundCooldown = DateTime.Now.AddSeconds(30);
+            }
+        }
+        else
+        {
+            _soundStreak = 0;
+        }
     }
 
     // ── Sparkline ────────────────────────────────────────────────────────────
@@ -183,11 +242,40 @@ public partial class MainWindow : Window
     private void ApplySettings()
     {
         TargetInput.Text   = _prefs.Target;
+        ExtraInput1.Text   = _prefs.ExtraTarget1;
+        ExtraInput2.Text   = _prefs.ExtraTarget2;
         AlertInput.Text    = _prefs.AlertThresholdMs.ToString();
         AlwaysOnTopCheck.IsChecked = _prefs.AlwaysOnTop;
         AutoStartCheck.IsChecked   = _svc.IsStartWithWindowsEnabled();
+        SoundCheck.IsChecked       = _prefs.SoundAlert;
         Topmost = _prefs.AlwaysOnTop;
         TargetLabel.Text = $"TARGET · {_prefs.Target}";
+
+        // Show secondary rows for configured extra targets
+        UpdateSecondaryRowVisibility();
+    }
+
+    private void UpdateSecondaryRowVisibility()
+    {
+        if (!string.IsNullOrWhiteSpace(_prefs.ExtraTarget1))
+        {
+            SecRow1.Visibility = Visibility.Visible;
+            SecLabel1.Text     = _prefs.ExtraTarget1.Trim();
+        }
+        else
+        {
+            SecRow1.Visibility = Visibility.Collapsed;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_prefs.ExtraTarget2))
+        {
+            SecRow2.Visibility = Visibility.Visible;
+            SecLabel2.Text     = _prefs.ExtraTarget2.Trim();
+        }
+        else
+        {
+            SecRow2.Visibility = Visibility.Collapsed;
+        }
     }
 
     private void SaveSettings()
@@ -231,9 +319,24 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
+    private void Sound_Changed(object sender, RoutedEventArgs e)
+    {
+        _prefs.SoundAlert = SoundCheck.IsChecked == true;
+        _soundStreak = 0;
+        SaveSettings();
+    }
+
     private void TargetInput_LostFocus(object sender, RoutedEventArgs e)   => ApplyTarget();
     private void TargetInput_KeyDown(object sender, WpfKeyArgs e)
     { if (e.Key == WpfKey.Enter) { ApplyTarget(); WpfKeyboard.ClearFocus(); } }
+
+    private void ExtraInput1_LostFocus(object sender, RoutedEventArgs e)   => ApplyExtra(0);
+    private void ExtraInput1_KeyDown(object sender, WpfKeyArgs e)
+    { if (e.Key == WpfKey.Enter) { ApplyExtra(0); WpfKeyboard.ClearFocus(); } }
+
+    private void ExtraInput2_LostFocus(object sender, RoutedEventArgs e)   => ApplyExtra(1);
+    private void ExtraInput2_KeyDown(object sender, WpfKeyArgs e)
+    { if (e.Key == WpfKey.Enter) { ApplyExtra(1); WpfKeyboard.ClearFocus(); } }
 
     private void AlertInput_LostFocus(object sender, RoutedEventArgs e)    => ApplyAlert();
     private void AlertInput_KeyDown(object sender, WpfKeyArgs e)
@@ -243,10 +346,29 @@ public partial class MainWindow : Window
     {
         var t = TargetInput.Text.Trim();
         if (string.IsNullOrWhiteSpace(t)) { TargetInput.Text = _prefs.Target; return; }
-        _prefs.Target        = t;
-        _monitor.Target      = t;
-        TargetLabel.Text     = $"TARGET · {t}";
+        _prefs.Target   = t;
+        _monitor.Target = t;
+        TargetLabel.Text = $"TARGET · {t}";
         _monitor.Restart();
+        SaveSettings();
+    }
+
+    private void ApplyExtra(int index)
+    {
+        var input = index == 0 ? ExtraInput1 : ExtraInput2;
+        var host  = input.Text.Trim();
+
+        if (index == 0) _prefs.ExtraTarget1 = host;
+        else            _prefs.ExtraTarget2 = host;
+
+        var mon = _secondary[index];
+        mon.Target = host;
+        if (string.IsNullOrWhiteSpace(host))
+            mon.Stop();
+        else
+            mon.Restart();
+
+        UpdateSecondaryRowVisibility();
         SaveSettings();
     }
 
@@ -256,7 +378,7 @@ public partial class MainWindow : Window
         {
             _prefs.AlertThresholdMs = v;
             SaveSettings();
-            RenderSparkline(); // redraw threshold line
+            RenderSparkline();
         }
         else
         {
@@ -291,7 +413,7 @@ public partial class MainWindow : Window
         _pendingUpdate = info;
         await Dispatcher.InvokeAsync(() =>
         {
-            UpdateBadgeText.Text = $"v{info.Version} disponible";
+            UpdateBadgeText.Text   = $"v{info.Version} disponible";
             UpdateBadge.Visibility = Visibility.Visible;
         });
     }
@@ -312,7 +434,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            UpdateBadgeText.Text = $"Error: {ex.Message}";
+            UpdateBadgeText.Text         = $"Error: {ex.Message}";
             UpdateBadge.IsHitTestVisible = true;
         }
     }
@@ -320,7 +442,6 @@ public partial class MainWindow : Window
     public void ForceClose()
     {
         _monitor.SampleAdded -= OnSample;
-        _forceClose = true;
         Close();
     }
 }
