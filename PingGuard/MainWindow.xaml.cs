@@ -7,15 +7,17 @@ using WpfKeyArgs      = System.Windows.Input.KeyEventArgs;
 using WpfKey          = System.Windows.Input.Key;
 using WpfKeyboard     = System.Windows.Input.Keyboard;
 using WpfMouseBtnArgs = System.Windows.Input.MouseButtonEventArgs;
+using WpfMouseBtn     = System.Windows.Input.MouseButton;
 
 namespace PingGuard;
 
 public partial class MainWindow : Window
 {
-    private readonly PingMonitorService _monitor;
-    private readonly SettingsService    _svc;
-    private          AppSettings        _prefs;
-    private          bool               _forceClose;
+    private readonly PingMonitorService    _monitor;
+    private readonly SettingsService       _svc;
+    private          AppSettings           _prefs;
+    private          bool                  _forceClose;
+    private          UpdateService.UpdateInfo? _pendingUpdate;
 
     // Ping color thresholds
     private static readonly MediaColor CGreen  = MediaColor.FromRgb(74,  222, 128);
@@ -45,6 +47,8 @@ public partial class MainWindow : Window
         {
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
         }
+
+        _ = CheckForUpdateAsync();
     }
 
     // ── Sample handler ───────────────────────────────────────────────────────
@@ -276,6 +280,41 @@ public partial class MainWindow : Window
     {
         base.OnLocationChanged(e);
         SaveSettings();
+    }
+
+    // ── Auto-update ──────────────────────────────────────────────────────────
+
+    private async Task CheckForUpdateAsync()
+    {
+        var info = await UpdateService.CheckAsync().ConfigureAwait(false);
+        if (info is null) return;
+        _pendingUpdate = info;
+        await Dispatcher.InvokeAsync(() =>
+        {
+            UpdateBadgeText.Text = $"v{info.Version} disponible";
+            UpdateBadge.Visibility = Visibility.Visible;
+        });
+    }
+
+    private async void UpdateBadge_Click(object sender, WpfMouseBtnArgs e)
+    {
+        if (e.ChangedButton != WpfMouseBtn.Left || _pendingUpdate is null) return;
+
+        UpdateBadge.IsHitTestVisible = false;
+        UpdateBadgeText.Text = "Descargando...";
+
+        try
+        {
+            await UpdateService.DownloadAndInstallAsync(
+                _pendingUpdate,
+                pct => Dispatcher.InvokeAsync(() =>
+                    UpdateBadgeText.Text = $"Descargando... {pct}%"));
+        }
+        catch (Exception ex)
+        {
+            UpdateBadgeText.Text = $"Error: {ex.Message}";
+            UpdateBadge.IsHitTestVisible = true;
+        }
     }
 
     public void ForceClose()
