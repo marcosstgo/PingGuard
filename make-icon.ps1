@@ -1,167 +1,243 @@
-Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 
-function Draw-PingIcon([int]$size) {
-    $bmp = New-Object System.Drawing.Bitmap($size, $size)
-    $g   = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.SmoothingMode    = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $g.CompositingMode  = [System.Drawing.Drawing2D.CompositingMode]::SourceOver
-    $g.Clear([System.Drawing.Color]::Transparent)
-
-    $cx = $size / 2.0
-    $cy = $size / 2.0
-
-    # ── Background rounded square ────────────────────────────────────────────
-    $r   = [int]($size * 0.22)
-    $bg  = [System.Drawing.Color]::FromArgb(255, 8, 8, 14)
-    $bgB = New-Object System.Drawing.SolidBrush($bg)
-    $path = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $path.AddArc(0, 0, $r*2, $r*2, 180, 90)
-    $path.AddArc($size - $r*2, 0, $r*2, $r*2, 270, 90)
-    $path.AddArc($size - $r*2, $size - $r*2, $r*2, $r*2, 0, 90)
-    $path.AddArc(0, $size - $r*2, $r*2, $r*2, 90, 90)
-    $path.CloseFigure()
-    $g.FillPath($bgB, $path)
-
-    # ── Subtle inner glow (dark green tint) ──────────────────────────────────
-    if ($size -ge 32) {
-        $glowR = [int]($size * 0.52)
-        for ($i = $glowR; $i -gt 0; $i -= 2) {
-            $alpha = [int](18 * ($i / $glowR))
-            $gb = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb($alpha, 74, 222, 128))
-            $g.FillEllipse($gb, $cx - $i, $cy - $i, $i*2, $i*2)
-            $gb.Dispose()
-        }
-    }
-
-    # ── Radar rings ──────────────────────────────────────────────────────────
-    $ringSpecs = @(
-        @{ R = 0.44; A = 40; W = [Math]::Max(1.0, $size * 0.018) },
-        @{ R = 0.31; A = 70; W = [Math]::Max(1.0, $size * 0.022) },
-        @{ R = 0.18; A = 100; W = [Math]::Max(1.0, $size * 0.026) }
-    )
-
-    foreach ($spec in $ringSpecs) {
-        if ($size -lt 24 -and $spec.R -gt 0.35) { continue }
-        $rd  = [float]($size * $spec.R)
-        $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb($spec.A, 74, 222, 128), $spec.W)
-        $pen.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Solid
-        $g.DrawEllipse($pen, [float]($cx - $rd), [float]($cy - $rd), [float]($rd * 2), [float]($rd * 2))
-        $pen.Dispose()
-    }
-
-    # ── EKG pulse line (only 48px+) ──────────────────────────────────────────
-    if ($size -ge 48) {
-        $s  = $size / 256.0
-        $pts = [System.Drawing.PointF[]]@(
-            [System.Drawing.PointF]::new(  30 * $s, 128 * $s),
-            [System.Drawing.PointF]::new(  76 * $s, 128 * $s),
-            [System.Drawing.PointF]::new(  96 * $s,  72 * $s),
-            [System.Drawing.PointF]::new( 116 * $s, 192 * $s),
-            [System.Drawing.PointF]::new( 136 * $s, 104 * $s),
-            [System.Drawing.PointF]::new( 156 * $s, 152 * $s),
-            [System.Drawing.PointF]::new( 176 * $s, 128 * $s),
-            [System.Drawing.PointF]::new( 226 * $s, 128 * $s)
-        )
-        $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(220, 74, 222, 128), [float]($size * 0.052))
-        $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-        $pen.EndCap   = [System.Drawing.Drawing2D.LineCap]::Round
-        $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
-        $g.DrawLines($pen, $pts)
-        $pen.Dispose()
-
-        # Fade ends with dark overlay strips
-        $fade = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(200, 8, 8, 14))
-        $fadeW = [int]($size * 0.12)
-        $g.FillRectangle($fade, 0, 0, $fadeW, $size)
-        $g.FillRectangle($fade, $size - $fadeW, 0, $fadeW, $size)
-        $fade.Dispose()
-
-        # Clip everything to rounded rect
-        $g.SetClip($path)
-    }
-
-    # ── Center dot ───────────────────────────────────────────────────────────
-    $dotR = [float]([Math]::Max(2.5, $size * 0.072))
-    # Outer glow of dot
-    $glowPen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(60, 74, 222, 128), $dotR * 1.4)
-    $g.DrawEllipse($glowPen, [float]($cx - $dotR * 0.7), [float]($cy - $dotR * 0.7), [float]($dotR * 1.4), [float]($dotR * 1.4))
-    $glowPen.Dispose()
-    # Solid dot
-    $dotB = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 74, 222, 128))
-    $g.FillEllipse($dotB, [float]($cx - $dotR), [float]($cy - $dotR), [float]($dotR * 2), [float]($dotR * 2))
-    $dotB.Dispose()
-
-    $g.Dispose()
-    $bgB.Dispose()
-    return $bmp
+# ── Color helpers ─────────────────────────────────────────────────────────────
+function C([int]$a,[int]$r,[int]$g,[int]$b) {
+    [System.Windows.Media.Color]::FromArgb($a,$r,$g,$b)
+}
+function Brush([System.Windows.Media.Color]$c) {
+    [System.Windows.Media.SolidColorBrush]::new($c)
 }
 
-# ── Write multi-size .ico ────────────────────────────────────────────────────
-function Write-Ico([string]$outPath, [int[]]$sizes) {
-    $stream = New-Object System.IO.MemoryStream
+# ── Render one size ───────────────────────────────────────────────────────────
+function Render-Frame([int]$size) {
 
-    # ICO header: RESERVED(2) TYPE(2) COUNT(2)
-    $count = $sizes.Count
-    [byte[]]$header = @(0,0, 1,0, [byte]($count -band 0xFF), [byte](($count -shr 8) -band 0xFF))
-    $stream.Write($header, 0, $header.Length)
+    $dv = New-Object System.Windows.Media.DrawingVisual
+    $dc = $dv.RenderOpen()
 
-    # Reserve space for directory entries (16 bytes each)
-    $dirSize   = $count * 16
-    $dataOffset = 6 + $dirSize
-    $stream.Write((New-Object byte[] $dirSize), 0, $dirSize)
+    $cx   = $size / 2.0
+    $cy   = $size / 2.0
+    $full = [System.Windows.Rect]::new(0, 0, $size, $size)
+    $r    = $size * 0.205   # rounded corner radius
 
-    $bitmaps   = @()
-    $offsets   = @()
-    $lengths   = @()
+    # ── 1. Push rounded-rect clip ─────────────────────────────────────────────
+    $clipGeo = New-Object System.Windows.Media.RectangleGeometry($full, $r, $r)
+    $dc.PushClip($clipGeo)
+
+    # ── 2. Background gradient (top-dark → bottom-darker) ────────────────────
+    $bgBrush = New-Object System.Windows.Media.LinearGradientBrush
+    $bgBrush.StartPoint = [System.Windows.Point]::new(0.5, 0)
+    $bgBrush.EndPoint   = [System.Windows.Point]::new(0.5, 1)
+    $bgBrush.GradientStops.Add([System.Windows.Media.GradientStop]::new((C 255 11 11 18), 0.0))
+    $bgBrush.GradientStops.Add([System.Windows.Media.GradientStop]::new((C 255  4  4  8), 1.0))
+    $dc.DrawRectangle($bgBrush, $null, $full)
+
+    # ── 3. Radial green inner glow ────────────────────────────────────────────
+    if ($size -ge 24) {
+        $rg = New-Object System.Windows.Media.RadialGradientBrush
+        $rg.GradientOrigin = [System.Windows.Point]::new(0.5, 0.5)
+        $rg.Center         = [System.Windows.Point]::new(0.5, 0.5)
+        $rg.RadiusX = 0.58; $rg.RadiusY = 0.58
+        $rg.GradientStops.Add([System.Windows.Media.GradientStop]::new((C 55 74 222 128), 0.0))
+        $rg.GradientStops.Add([System.Windows.Media.GradientStop]::new((C  0 74 222 128), 1.0))
+        $dc.DrawRectangle($rg, $null, $full)
+    }
+
+    # ── 4. Radar rings ────────────────────────────────────────────────────────
+    $rings = @(
+        @{ Radius = 0.430; Alpha =  40; Width = [Math]::Max(0.7, $size * 0.009) },
+        @{ Radius = 0.305; Alpha =  70; Width = [Math]::Max(0.7, $size * 0.012) },
+        @{ Radius = 0.175; Alpha = 105; Width = [Math]::Max(0.7, $size * 0.016) }
+    )
+    $ctr = [System.Windows.Point]::new($cx, $cy)
+    foreach ($ring in $rings) {
+        if ($size -lt 32 -and $ring.Radius -gt 0.35) { continue }
+        if ($size -lt 16) { continue }
+        $rad = $size * $ring.Radius
+        $pen = New-Object System.Windows.Media.Pen(
+            (Brush (C $ring.Alpha 74 222 128)), $ring.Width)
+        $dc.DrawEllipse($null, $pen, $ctr, $rad, $rad)
+    }
+
+    # ── 5. EKG line with neon glow (48px+) ───────────────────────────────────
+    if ($size -ge 48) {
+
+        # Points in normalized 0..1 space — sharp classic ECG shape
+        $norm = @(
+            @(0.118, 0.500),   # flat left
+            @(0.292, 0.500),
+            @(0.348, 0.400),   # slight pre-rise
+            @(0.380, 0.082),   # R peak (tall spike)
+            @(0.424, 0.768),   # S wave (below baseline)
+            @(0.458, 0.500),   # return
+            @(0.508, 0.392),   # T wave bump
+            @(0.552, 0.548),
+            @(0.596, 0.500),   # back to baseline
+            @(0.882, 0.500)    # flat right
+        )
+
+        $geo = New-Object System.Windows.Media.StreamGeometry
+        $sgc = $geo.Open()
+        $first = [System.Windows.Point]::new($norm[0][0] * $size, $norm[0][1] * $size)
+        $sgc.BeginFigure($first, $false, $false)
+        for ($i = 1; $i -lt $norm.Length; $i++) {
+            $sgc.LineTo([System.Windows.Point]::new($norm[$i][0]*$size, $norm[$i][1]*$size), $true, $false)
+        }
+        $sgc.Close()
+
+        # Glow passes: wide+faint → narrow+bright
+        $glowPasses = @(
+            @{ Alpha = 20; Width = $size * 0.22  },   # far glow
+            @{ Alpha = 42; Width = $size * 0.13  },   # mid glow
+            @{ Alpha = 75; Width = $size * 0.075 }    # inner glow
+        )
+        foreach ($gp in $glowPasses) {
+            $pen = New-Object System.Windows.Media.Pen(
+                (Brush (C $gp.Alpha 74 222 128)), $gp.Width)
+            $pen.StartLineCap = [System.Windows.Media.PenLineCap]::Round
+            $pen.EndLineCap   = [System.Windows.Media.PenLineCap]::Round
+            $pen.LineJoin     = [System.Windows.Media.PenLineJoin]::Round
+            $dc.DrawGeometry($null, $pen, $geo)
+        }
+
+        # Core line (crisp, bright)
+        $corePen = New-Object System.Windows.Media.Pen(
+            (Brush (C 240 74 222 128)), [Math]::Max(1.5, $size * 0.036))
+        $corePen.StartLineCap = [System.Windows.Media.PenLineCap]::Round
+        $corePen.EndLineCap   = [System.Windows.Media.PenLineCap]::Round
+        $corePen.LineJoin     = [System.Windows.Media.PenLineJoin]::Round
+        $dc.DrawGeometry($null, $corePen, $geo)
+
+        # White highlight on top of core (gives it that bright neon look)
+        if ($size -ge 64) {
+            $hlPen = New-Object System.Windows.Media.Pen(
+                (Brush (C 90 210 255 220)), [Math]::Max(0.8, $size * 0.013))
+            $hlPen.StartLineCap = [System.Windows.Media.PenLineCap]::Round
+            $hlPen.EndLineCap   = [System.Windows.Media.PenLineCap]::Round
+            $hlPen.LineJoin     = [System.Windows.Media.PenLineJoin]::Round
+            $dc.DrawGeometry($null, $hlPen, $geo)
+        }
+
+        # Fade strips left + right (mask line ends into background)
+        $fadeW = $size * 0.155
+        $bgMid = C 255 7 7 12
+
+        $lf = New-Object System.Windows.Media.LinearGradientBrush
+        $lf.StartPoint = [System.Windows.Point]::new(0, 0.5)
+        $lf.EndPoint   = [System.Windows.Point]::new(1, 0.5)
+        $lf.GradientStops.Add([System.Windows.Media.GradientStop]::new($bgMid, 0.0))
+        $lf.GradientStops.Add([System.Windows.Media.GradientStop]::new((C 0 7 7 12), 1.0))
+        $dc.DrawRectangle($lf, $null, [System.Windows.Rect]::new(0, 0, $fadeW, $size))
+
+        $rf = New-Object System.Windows.Media.LinearGradientBrush
+        $rf.StartPoint = [System.Windows.Point]::new(0, 0.5)
+        $rf.EndPoint   = [System.Windows.Point]::new(1, 0.5)
+        $rf.GradientStops.Add([System.Windows.Media.GradientStop]::new((C 0 7 7 12), 0.0))
+        $rf.GradientStops.Add([System.Windows.Media.GradientStop]::new($bgMid, 1.0))
+        $dc.DrawRectangle($rf, $null, [System.Windows.Rect]::new($size - $fadeW, 0, $fadeW, $size))
+    }
+
+    # ── 6. Center dot with multi-layer radial glow ────────────────────────────
+    $dotR = [Math]::Max(2.8, $size * 0.062)
+
+    # Outer glow
+    foreach ($gf in @(3.8, 2.6, 1.7)) {
+        if ($size -lt 32 -and $gf -gt 2.0) { continue }
+        $alpha = switch ($gf) { 3.8 { 28 } 2.6 { 58 } 1.7 { 95 } }
+        $gb = New-Object System.Windows.Media.RadialGradientBrush
+        $gb.GradientOrigin = [System.Windows.Point]::new(0.5, 0.5)
+        $gb.Center         = [System.Windows.Point]::new(0.5, 0.5)
+        $gb.RadiusX = 1.0; $gb.RadiusY = 1.0
+        $gb.GradientStops.Add([System.Windows.Media.GradientStop]::new((C $alpha 74 222 128), 0.0))
+        $gb.GradientStops.Add([System.Windows.Media.GradientStop]::new((C 0 74 222 128), 1.0))
+        $gr = $dotR * $gf
+        $dc.DrawEllipse($gb, $null, $ctr, $gr, $gr)
+    }
+
+    # Solid dot
+    $dc.DrawEllipse((Brush (C 255 90 238 148)), $null, $ctr, $dotR, $dotR)
+
+    # Specular highlight (top-left sparkle)
+    if ($size -ge 48) {
+        $hlR = $dotR * 0.38
+        $hlCtr = [System.Windows.Point]::new($cx - $dotR * 0.22, $cy - $dotR * 0.22)
+        $dc.DrawEllipse((Brush (C 170 210 255 225)), $null, $hlCtr, $hlR, $hlR)
+    }
+
+    # ── 7. Top-edge glass sheen ───────────────────────────────────────────────
+    if ($size -ge 48) {
+        $gh = $size * 0.20
+        $gb = New-Object System.Windows.Media.LinearGradientBrush
+        $gb.StartPoint = [System.Windows.Point]::new(0.5, 0)
+        $gb.EndPoint   = [System.Windows.Point]::new(0.5, 1)
+        $gb.GradientStops.Add([System.Windows.Media.GradientStop]::new((C 22 255 255 255), 0.0))
+        $gb.GradientStops.Add([System.Windows.Media.GradientStop]::new((C  0 255 255 255), 1.0))
+        $dc.DrawRectangle($gb, $null, [System.Windows.Rect]::new(0, 0, $size, $gh))
+    }
+
+    $dc.Pop()   # pop clip
+    $dc.Close()
+
+    $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap(
+        $size, $size, 96, 96, [System.Windows.Media.PixelFormats]::Pbgra32)
+    $rtb.Render($dv)
+
+    $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder
+    $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($rtb))
+    $ms = New-Object System.IO.MemoryStream
+    $enc.Save($ms)
+    return $ms.ToArray()
+}
+
+# ── Write .ico (PNG-based, multi-size) ───────────────────────────────────────
+function Write-Ico([string]$path, [int[]]$sizes) {
+    $frames  = @(); $offsets = @(); $lengths = @()
+    $count   = $sizes.Count
+    $dirSize = $count * 16
+    $offset  = 6 + $dirSize
 
     foreach ($sz in $sizes) {
-        $bmp     = Draw-PingIcon $sz
-        $bmpStream = New-Object System.IO.MemoryStream
-        $bmp.Save($bmpStream, [System.Drawing.Imaging.ImageFormat]::Png)
-        $bytes   = $bmpStream.ToArray()
-        $bitmaps += $bmpStream
-        $offsets += $dataOffset
+        $bytes   = Render-Frame $sz
+        $frames += ,$bytes
+        $offsets += $offset
         $lengths += $bytes.Length
-        $dataOffset += $bytes.Length
-        $bmp.Dispose()
+        $offset  += $bytes.Length
     }
 
-    # Write directory
-    $stream.Position = 6
+    $ms = New-Object System.IO.MemoryStream
+    # ICO header
+    $ms.Write([byte[]](0,0, 1,0, [byte]($count -band 0xFF), [byte](($count -shr 8) -band 0xFF)), 0, 6)
+    # Directory
     for ($i = 0; $i -lt $count; $i++) {
         $sz = $sizes[$i]
-        [byte]$w  = if ($sz -ge 256) { 0 } else { [byte]$sz }
-        [byte]$h  = if ($sz -ge 256) { 0 } else { [byte]$sz }
-        [byte[]]$entry = @(
-            $w, $h,          # width, height (0 = 256)
-            0, 0,            # color count, reserved
-            1, 0,            # planes
-            32, 0,           # bit count
-            [byte]($lengths[$i] -band 0xFF),
-            [byte](($lengths[$i] -shr 8)  -band 0xFF),
-            [byte](($lengths[$i] -shr 16) -band 0xFF),
-            [byte](($lengths[$i] -shr 24) -band 0xFF),
-            [byte]($offsets[$i] -band 0xFF),
-            [byte](($offsets[$i] -shr 8)  -band 0xFF),
-            [byte](($offsets[$i] -shr 16) -band 0xFF),
-            [byte](($offsets[$i] -shr 24) -band 0xFF)
+        [byte]$w = if ($sz -ge 256) { 0 } else { [byte]$sz }
+        [byte]$h = if ($sz -ge 256) { 0 } else { [byte]$sz }
+        $entry = [byte[]]@(
+            $w, $h, 0, 0, 1, 0, 32, 0,
+            [byte]($lengths[$i] -band 0xFF), [byte](($lengths[$i] -shr  8) -band 0xFF),
+            [byte](($lengths[$i] -shr 16) -band 0xFF), [byte](($lengths[$i] -shr 24) -band 0xFF),
+            [byte]($offsets[$i] -band 0xFF), [byte](($offsets[$i] -shr  8) -band 0xFF),
+            [byte](($offsets[$i] -shr 16) -band 0xFF), [byte](($offsets[$i] -shr 24) -band 0xFF)
         )
-        $stream.Write($entry, 0, 16)
+        $ms.Write($entry, 0, 16)
     }
+    # Data
+    foreach ($bytes in $frames) { $ms.Write($bytes, 0, $bytes.Length) }
 
-    # Write PNG data
-    $stream.Position = $stream.Length
-    for ($i = 0; $i -lt $count; $i++) {
-        $bytes = $bitmaps[$i].ToArray()
-        $stream.Write($bytes, 0, $bytes.Length)
-        $bitmaps[$i].Dispose()
-    }
-
-    [System.IO.File]::WriteAllBytes($outPath, $stream.ToArray())
-    $stream.Dispose()
-    Write-Host "OK: $outPath"
+    [System.IO.File]::WriteAllBytes($path, $ms.ToArray())
+    Write-Host "ICO  → $path"
 }
 
-$out = Join-Path $PSScriptRoot "PingGuard\pinggua.ico"
-Write-Ico $out @(16, 24, 32, 48, 64, 128, 256)
-Write-Host "Icon saved to $out"
+# ── Save PNG ──────────────────────────────────────────────────────────────────
+function Write-Png([string]$path, [int]$size) {
+    [System.IO.File]::WriteAllBytes($path, (Render-Frame $size))
+    Write-Host "PNG  → $path  (${size}px)"
+}
+
+# ── Run ───────────────────────────────────────────────────────────────────────
+$base = $PSScriptRoot
+
+Write-Ico  (Join-Path $base "PingGuard\pinggua.ico")        @(16, 24, 32, 48, 64, 128, 256)
+Write-Png  (Join-Path $base "PingGuard\pinggua-256.png")    256
+Write-Png  (Join-Path $base "PingGuard\pinggua-512.png")    512
+
+Write-Host "Done."
